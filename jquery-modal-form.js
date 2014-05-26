@@ -1,11 +1,10 @@
-
 $.fn.modalForm = function (options) {
 
     var defaults = {
         destroy: true,
-        open: function (modal, target) { },
-        submit: function (modal, target, data) { },
-        close: function (modal, target, event) { }
+        open: function (modal) { },
+        submit: function (modal, data) { },
+        close: function (modal, event) { }
     };
 
     defaults = $.extend(defaults, options);
@@ -41,9 +40,9 @@ $.fn.modalForm = function (options) {
 
             // hook open. called afte the modal is built and loaded
             if (typeof defaults.open === 'function') {
-                defaults.open.call(modal, target);
+                defaults.open.call(null, modal);
             }
-            
+
             // open the BS modal
             modal.modal();
 
@@ -63,7 +62,7 @@ $.fn.modalForm = function (options) {
 
                     // call hook submit
                     if (typeof defaults.submit === 'function') {
-                        defaults.submit.call(modal, target, data);
+                        defaults.submit.call(null, modal, data);
                     }
 
                     buttons.prop('disabled', false);
@@ -73,15 +72,15 @@ $.fn.modalForm = function (options) {
             // hook close. to be called after the modal is closed and hidden
             if (typeof defaults.close === 'function') {
                 modal.on('hidden.bs.modal', function (event) {
-                    defaults.close.call(modal, target, event);
+                    defaults.close.call(null, modal, event);
                 });
             }
 
             // see if we want to remove the item
             modal.on('hidden.bs.modal', function (event) {
                 if (true === defaults.destroy) {
-                    $('#' + target).data('bs.modal', null);
-                    $('#' + target).remove();
+                    modal.data('bs.modal', null);
+                    modal.remove();
                 }
             });
         });
@@ -106,7 +105,7 @@ $.fn.modalForm = function (options) {
                     '</div>' +
                 '</div>' +
             '</div>');
-        
+
         $('body').append(dynamicModal);
         return dynamicModal;
     }
