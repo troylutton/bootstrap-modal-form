@@ -20,6 +20,7 @@ $.fn.modalForm = function (options) {
             // init
             var element = $(this);
             var modal = null;
+            var fragment = element.data('fragment') ? ' ' + element.data('fragment') : '';
             var target = element.data('target');
             var title = element.data('title') ? element.data('title') : this.innerHTML;
 
@@ -33,7 +34,7 @@ $.fn.modalForm = function (options) {
             }
 
             // load the content into the scoped modal
-            $('.modal-body', modal).load(this.href, function() {
+            $('.modal-body', modal).load(this.href + fragment, function () {
                 $('.modal-body .buttons', modal).hide();
                 $('.modal-title', modal).html(title);
             });
