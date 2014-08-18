@@ -1,10 +1,20 @@
-$.fn.modalForm = function (options) {
+﻿$.fn.modalForm = function (options) {
 
     var defaults = {
         destroy: true,
+        hasValidation: true,
+        useFormButtons: false,
         open: function (modal) { },
-        submit: function (modal, data) { },
-        close: function (modal, event) { }
+        submit: function (modal, element) {
+            defaultSubmit(modal, element);
+        },
+        afterSubmit: function (modal, data) { },
+        close: function (modal, event) { },
+        message: function (modal, message) {
+            // this can be overwritten
+            $('#' + modal.attr('id') + ' .modal-message-text').html(message);
+            $('.modal-messages', modal).show();
+        }
     };
 
     defaults = $.extend(defaults, options);
@@ -34,14 +44,29 @@ $.fn.modalForm = function (options) {
 
             // load the content into the scoped modal
             $('.modal-body', modal).load(this.href + fragment, function () {
-                $('.modal-body .buttons', modal).hide();
-                $('.modal-title', modal).html(title);
-            });
 
-            // hook open. called afte the modal is built and loaded
-            if (typeof defaults.open === 'function') {
-                defaults.open.call(null, modal);
-            }
+                if (defaults.useFormButtons) {
+                    // use the forms buttons rather that the default template
+                    $('.modal-footer', modal).replaceWith($('.modal-body .buttons', modal));
+                }
+                else {
+                    // hide the form buttons
+                    $('.modal-body .buttons', modal).hide();
+                }
+
+                
+                $('.modal-title', modal).html(title);
+
+                if (defaults.hasValidation) {
+                    // attach validation
+                    $.validator.unobtrusive.parse($('form', this));
+                }
+
+                // hook open. called afte the modal is built and loaded
+                if (typeof defaults.open === 'function') {
+                    defaults.open.call(null, modal, element);
+                }
+            });
 
             // open the BS modal
             modal.modal();
@@ -49,30 +74,13 @@ $.fn.modalForm = function (options) {
             // form submission event
             $('.button-submit', modal).click(function (ev) {
                 ev.preventDefault();
-
-                var form = $('form', modal);
-                var buttons = $('.button-submit, .button-cancel', modal);
-                buttons.prop('disabled', true);
-
-                $.ajax({
-                    type: form.attr('method'),
-                    url: form.attr('action'),
-                    data: form.serialize()
-                }).done(function (data) {
-
-                    // call hook submit
-                    if (typeof defaults.submit === 'function') {
-                        defaults.submit.call(null, modal, data);
-                    }
-
-                    buttons.prop('disabled', false);
-                });
+                defaults.submit.call(null, modal, element);
             });
 
             // hook close. to be called after the modal is closed and hidden
             if (typeof defaults.close === 'function') {
                 modal.on('hidden.bs.modal', function (event) {
-                    defaults.close.call(null, modal, event);
+                    defaults.close.call(null, modal, event, element);
                 });
             }
 
@@ -86,6 +94,53 @@ $.fn.modalForm = function (options) {
         });
     });
 
+    function defaultSubmit(modal, element) {
+
+        if (defaults.hasValidation) {
+            // perform validation
+            if (!$('form', modal).valid()) {
+                return;
+            }
+        }
+
+        var form = $('form', modal);
+        // modal-footer
+        var buttons = $('.modal-footer button, .modal-footer a, .modal-footer input', modal);
+        //var buttons = $('.button-submit, .button-cancel', modal);
+        buttons.prop('disabled', true);
+
+        $.ajax({
+            type: form.attr('method'),
+            url: form.attr('action'),
+            data: form.serialize()
+        }).done(function (data, textStatus, xhr) {
+
+            var contentType = xhr.getResponseHeader("content-type") || "";
+            if (contentType.indexOf('html') > -1) {
+                // html response - replace the contents
+                $('.modal-body', modal).html(data);
+                if (defaults.hasValidation) {
+                    $.validator.unobtrusive.parse($('form', modal));
+                }
+            }
+            if (contentType.indexOf('json') > -1) {
+                // unsuccessful submission - show message
+                if (false === data.success) {
+                    if (typeof defaults.message === 'function') {
+                        defaults.message.call(null, modal, data.message);
+                    }
+                }
+            }
+
+            // call hook submit
+            if (typeof defaults.afterSubmit === 'function') {
+                defaults.afterSubmit.call(null, modal, data, element);
+            }
+
+            buttons.prop('disabled', false);
+        });
+    }
+
     // create a basic modal to fillout
     function createModal(target, title) {
         var dynamicModal = $(
@@ -96,8 +151,8 @@ $.fn.modalForm = function (options) {
                             '<button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>' +
                             '<h4 class="modal-title">' + title + '</h4>' +
                         '</div>' +
-                        '<div class="modal-messages"></div>' +
-                        '<div class="modal-body" style="background-color:white;"></div>' +
+                        '<div class="modal-messages" style="display:none"><div class="alert alert-error"><span class="modal-message-text"></span></div></div>' +
+                        '<div class="modal-body" style="background-color:white;"><img src="/Content/Images/ajax-loader-32x32.gif" /></div>' +
                         '<div class="modal-footer">' +
                             '<button type="button" class="btn btn-default button-cancel" data-dismiss="modal">Close</button>' +
                             '<button type="button" class="btn btn-primary button-submit">Save changes</button>' +
@@ -109,4 +164,4 @@ $.fn.modalForm = function (options) {
         $('body').append(dynamicModal);
         return dynamicModal;
     }
-};
+}; 
